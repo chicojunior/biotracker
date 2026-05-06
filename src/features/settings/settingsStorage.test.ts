@@ -103,6 +103,24 @@ describe('settings storage', () => {
     expect(loadUserSettings(invalidShapeStorage)).toEqual(DEFAULT_USER_SETTINGS);
   });
 
+  it('accepts empty goal notes values', () => {
+    const storage = createMemoryStorage();
+
+    saveUserSettings(
+      {
+        ...DEFAULT_USER_SETTINGS,
+        goalNotes: {
+          workoutNotes: '',
+        },
+      },
+      storage,
+    );
+
+    expect(loadUserSettings(storage).goalNotes).toEqual({
+      workoutNotes: '',
+    });
+  });
+
   it('updates settings with a deep patch and persists the result', () => {
     const storage = createMemoryStorage();
     saveUserSettings(

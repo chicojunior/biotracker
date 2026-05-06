@@ -60,10 +60,11 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
 
 const nonEmptyStringSchema = z.string().trim().min(1);
 const settingsRecordSchema = z.record(nonEmptyStringSchema, nonEmptyStringSchema);
+const goalNotesRecordSchema = z.record(nonEmptyStringSchema, z.string());
 const userSettingsSchema = z.object({
   preferredUnits: settingsRecordSchema.optional(),
   preferredSourceByMetric: settingsRecordSchema.optional(),
-  goalNotes: settingsRecordSchema.optional(),
+  goalNotes: goalNotesRecordSchema.optional(),
   theme: z.enum(['system', 'light', 'dark']).optional(),
 });
 

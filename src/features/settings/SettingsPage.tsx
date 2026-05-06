@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import {
   Database,
   Info,
@@ -28,12 +27,14 @@ export type SettingsPageValue = {
 };
 
 type SettingsPageProps = {
-  initialSettings?: Partial<SettingsPageValue>;
   isSaving?: boolean;
+  onChange: (settings: SettingsPageValue) => void;
   onExport?: () => void;
   onImport?: () => void;
-  onReset?: () => void;
-  onSave?: (settings: SettingsPageValue) => void;
+  onReset: () => void;
+  onSave: () => void;
+  settings: SettingsPageValue;
+  statusMessage?: string;
 };
 
 const SOURCE_OPTIONS: Record<string, { label: string; value: HealthDataSource }[]> = {
@@ -59,7 +60,7 @@ const SOURCE_OPTIONS: Record<string, { label: string; value: HealthDataSource }[
   ],
 };
 
-const METRICS: MetricPreference[] = [
+export const METRICS: MetricPreference[] = [
   {
     description: "Body mass trend.",
     key: "weight",
@@ -128,7 +129,7 @@ const THEME_OPTIONS: Array<{
   { description: "Dark interface.", label: "Dark", value: "dark" },
 ];
 
-function createDefaultMetricPreferences() {
+export function createDefaultMetricPreferences() {
   return METRICS.reduce<Record<string, MetricPreferenceValue>>((preferences, metric) => {
     preferences[metric.key] = {
       source: metric.sourceOptions[0]?.value ?? "manual",
@@ -138,7 +139,7 @@ function createDefaultMetricPreferences() {
   }, {});
 }
 
-function createInitialSettings(
+export function createInitialSettings(
   initialSettings?: Partial<SettingsPageValue>,
 ): SettingsPageValue {
   return {
@@ -154,49 +155,26 @@ function createInitialSettings(
 }
 
 export function SettingsPage({
-  initialSettings,
   isSaving = false,
+  onChange,
   onExport,
   onImport,
   onReset,
   onSave,
+  settings,
+  statusMessage = "",
 }: SettingsPageProps) {
-  const initialValue = useMemo(
-    () => createInitialSettings(initialSettings),
-    [initialSettings],
-  );
-  const [settings, setSettings] = useState<SettingsPageValue>(initialValue);
-  const [statusMessage, setStatusMessage] = useState("");
-
   const updateMetricPreference = (
     metric: HealthMetricType,
     value: MetricPreferenceValue,
   ) => {
-    setSettings((current) => ({
-      ...current,
+    onChange({
+      ...settings,
       metricPreferences: {
-        ...current.metricPreferences,
+        ...settings.metricPreferences,
         [metric]: value,
       },
-    }));
-    setStatusMessage("");
-  };
-
-  const resetSettings = () => {
-    const nextSettings = createInitialSettings(initialSettings);
-
-    setSettings(nextSettings);
-    setStatusMessage("Settings reset for this view.");
-    onReset?.();
-  };
-
-  const saveSettings = () => {
-    onSave?.(settings);
-    setStatusMessage(
-      onSave
-        ? "Settings saved."
-        : "Changes are staged in this view.",
-    );
+    });
   };
 
   return (
@@ -217,7 +195,7 @@ export function SettingsPage({
           <div className="flex flex-col gap-2 sm:flex-row md:justify-end">
             <button
               type="button"
-              onClick={resetSettings}
+              onClick={onReset}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm transition hover:border-primary/70 hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <RotateCcw aria-hidden="true" className="h-4 w-4" />
@@ -225,7 +203,7 @@ export function SettingsPage({
             </button>
             <button
               type="button"
-              onClick={saveSettings}
+              onClick={onSave}
               disabled={isSaving}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
@@ -257,8 +235,7 @@ export function SettingsPage({
               options={THEME_OPTIONS}
               value={settings.theme}
               onChange={(theme) => {
-                setSettings((current) => ({ ...current, theme }));
-                setStatusMessage("");
+                onChange({ ...settings, theme });
               }}
             />
           </SettingsSection>
@@ -290,11 +267,10 @@ export function SettingsPage({
                 id="goal-notes"
                 value={settings.goalNotes}
                 onChange={(event) => {
-                  setSettings((current) => ({
-                    ...current,
+                  onChange({
+                    ...settings,
                     goalNotes: event.target.value,
-                  }));
-                  setStatusMessage("");
+                  });
                 }}
                 rows={6}
                 className="min-h-36 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm leading-6 text-foreground shadow-sm transition placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
