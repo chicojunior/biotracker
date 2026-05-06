@@ -30,6 +30,7 @@ function makeSummary(summaryType: ReportSummary['summaryType'], id: string): Rep
       startDate: '2026-05-06',
       endDate: '2026-05-06',
     },
+    hasData: true,
     observations: ['ok'],
     missingData: [],
     consistency: {

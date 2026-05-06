@@ -16,8 +16,6 @@ const PERIOD_OPTIONS: Array<{
   { label: 'Mensal', value: 'monthly', description: 'Mostra cobertura e mudanças no mês.' },
 ];
 
-const NO_RECORDS_OBSERVATION = 'Nenhum registro encontrado no periodo selecionado.';
-
 function toSummaryTypeLabel(summaryType: ReportPeriodType): string {
   if (summaryType === 'daily') {
     return 'Diário';
@@ -41,7 +39,7 @@ function formatSummaryCreatedAt(createdAt: string): string {
 }
 
 function hasReportData(summary: ReportsPageProps['summary']) {
-  return !summary.observations.includes(NO_RECORDS_OBSERVATION);
+  return summary.hasData;
 }
 
 export function ReportsPage({

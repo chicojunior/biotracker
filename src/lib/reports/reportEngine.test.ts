@@ -50,6 +50,7 @@ describe('report engine', () => {
         startDate: '2026-05-06',
         endDate: '2026-05-06',
       },
+      hasData: false,
       observations: [
         'Nenhum registro encontrado no periodo selecionado.',
         'Sem variacoes metricas relevantes em comparacao ao periodo anterior.',
@@ -98,6 +99,7 @@ describe('report engine', () => {
     );
     expect(summary.observations).toContain('Comparado ao periodo anterior, weight variou +2.');
     expect(summary.missingData).toEqual([]);
+    expect(summary.hasData).toBe(true);
   });
 
   it('reports missing metrics in the current month based on known metrics history', () => {
@@ -127,5 +129,6 @@ describe('report engine', () => {
     expect(summary.missingData).toEqual(['sleepDuration']);
     expect(summary.observations).toContain('Dados ausentes no periodo: sleepDuration.');
     expect(summary.consistency.score).toBeLessThan(100);
+    expect(summary.hasData).toBe(true);
   });
 });

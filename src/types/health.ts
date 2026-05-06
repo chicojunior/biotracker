@@ -61,6 +61,7 @@ export type ReportSummary = {
     startDate: string;
     endDate: string;
   };
+  hasData: boolean;
   observations: string[];
   missingData: HealthMetricType[];
   consistency: {

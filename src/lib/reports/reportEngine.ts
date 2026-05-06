@@ -258,6 +258,7 @@ function createSummary(
   const expectedMetrics = getAllMetricTypes(entries);
   const currentMetricTypes = getMetricTypesForPeriod(currentEntries);
   const missingData = expectedMetrics.filter((metricType) => !currentMetricTypes.has(metricType));
+  const hasData = currentEntries.length > 0;
 
   const observations = [
     ...buildBaseObservations(range, currentEntries),
@@ -275,6 +276,7 @@ function createSummary(
       startDate: range.start,
       endDate: range.end,
     },
+    hasData,
     observations,
     missingData,
     consistency: buildConsistency(range, currentEntries, expectedMetrics),
