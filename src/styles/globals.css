@@ -1,0 +1,233 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    --background: 190 35% 98%;
+    --foreground: 205 34% 13%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 205 34% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 205 34% 13%;
+
+    --primary: 180 72% 27%;
+    --primary-foreground: 180 40% 98%;
+
+    --secondary: 207 32% 93%;
+    --secondary-foreground: 205 34% 18%;
+
+    --muted: 195 28% 94%;
+    --muted-foreground: 204 18% 39%;
+
+    --accent: 40 92% 47%;
+    --accent-foreground: 39 90% 11%;
+
+    --destructive: 0 76% 42%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 199 24% 84%;
+    --input: 199 24% 84%;
+    --ring: 180 72% 27%;
+
+    --chart-weight: 180 72% 27%;
+    --chart-body-fat: 217 70% 47%;
+    --chart-muscle: 145 56% 33%;
+    --chart-heart: 348 71% 44%;
+    --chart-sleep: 262 48% 45%;
+    --chart-1: var(--chart-weight);
+    --chart-2: var(--chart-body-fat);
+    --chart-3: var(--chart-muscle);
+    --chart-4: var(--chart-heart);
+    --chart-5: var(--chart-sleep);
+
+    --shadow: 205 34% 13%;
+    --radius: 0.5rem;
+    --font-sans: Aptos, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+
+      --background: 207 30% 8%;
+      --foreground: 190 30% 94%;
+
+      --card: 207 26% 12%;
+      --card-foreground: 190 30% 94%;
+
+      --popover: 207 26% 12%;
+      --popover-foreground: 190 30% 94%;
+
+      --primary: 176 62% 49%;
+      --primary-foreground: 190 42% 8%;
+
+      --secondary: 207 22% 18%;
+      --secondary-foreground: 190 30% 92%;
+
+      --muted: 207 22% 16%;
+      --muted-foreground: 199 15% 72%;
+
+      --accent: 42 88% 58%;
+      --accent-foreground: 39 90% 11%;
+
+      --destructive: 2 78% 62%;
+      --destructive-foreground: 0 0% 98%;
+
+      --border: 207 18% 24%;
+      --input: 207 18% 24%;
+      --ring: 176 62% 49%;
+
+      --chart-weight: 176 62% 49%;
+      --chart-body-fat: 214 84% 65%;
+      --chart-muscle: 146 58% 52%;
+      --chart-heart: 350 82% 68%;
+      --chart-sleep: 262 72% 70%;
+      --chart-1: var(--chart-weight);
+      --chart-2: var(--chart-body-fat);
+      --chart-3: var(--chart-muscle);
+      --chart-4: var(--chart-heart);
+      --chart-5: var(--chart-sleep);
+
+      --shadow: 0 0% 0%;
+    }
+  }
+
+  .light {
+    color-scheme: light;
+
+    --background: 190 35% 98%;
+    --foreground: 205 34% 13%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 205 34% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 205 34% 13%;
+
+    --primary: 180 72% 27%;
+    --primary-foreground: 180 40% 98%;
+
+    --secondary: 207 32% 93%;
+    --secondary-foreground: 205 34% 18%;
+
+    --muted: 195 28% 94%;
+    --muted-foreground: 204 18% 39%;
+
+    --accent: 40 92% 47%;
+    --accent-foreground: 39 90% 11%;
+
+    --destructive: 0 76% 42%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 199 24% 84%;
+    --input: 199 24% 84%;
+    --ring: 180 72% 27%;
+
+    --chart-weight: 180 72% 27%;
+    --chart-body-fat: 217 70% 47%;
+    --chart-muscle: 145 56% 33%;
+    --chart-heart: 348 71% 44%;
+    --chart-sleep: 262 48% 45%;
+    --chart-1: var(--chart-weight);
+    --chart-2: var(--chart-body-fat);
+    --chart-3: var(--chart-muscle);
+    --chart-4: var(--chart-heart);
+    --chart-5: var(--chart-sleep);
+
+    --shadow: 205 34% 13%;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    --background: 207 30% 8%;
+    --foreground: 190 30% 94%;
+
+    --card: 207 26% 12%;
+    --card-foreground: 190 30% 94%;
+
+    --popover: 207 26% 12%;
+    --popover-foreground: 190 30% 94%;
+
+    --primary: 176 62% 49%;
+    --primary-foreground: 190 42% 8%;
+
+    --secondary: 207 22% 18%;
+    --secondary-foreground: 190 30% 92%;
+
+    --muted: 207 22% 16%;
+    --muted-foreground: 199 15% 72%;
+
+    --accent: 42 88% 58%;
+    --accent-foreground: 39 90% 11%;
+
+    --destructive: 2 78% 62%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 207 18% 24%;
+    --input: 207 18% 24%;
+    --ring: 176 62% 49%;
+
+    --chart-weight: 176 62% 49%;
+    --chart-body-fat: 214 84% 65%;
+    --chart-muscle: 146 58% 52%;
+    --chart-heart: 350 82% 68%;
+    --chart-sleep: 262 72% 70%;
+    --chart-1: var(--chart-weight);
+    --chart-2: var(--chart-body-fat);
+    --chart-3: var(--chart-muscle);
+    --chart-4: var(--chart-heart);
+    --chart-5: var(--chart-sleep);
+
+    --shadow: 0 0% 0%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    min-height: 100%;
+    background: hsl(var(--background));
+    text-rendering: optimizeLegibility;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  button,
+  input,
+  optgroup,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
+    color: hsl(var(--foreground));
+  }
+}
