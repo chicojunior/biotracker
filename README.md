@@ -23,7 +23,6 @@ The current MVP includes:
 - React Router
 - React Hook Form
 - Zod
-- Recharts
 - Vitest + React Testing Library
 
 ## Getting Started
