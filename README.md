@@ -7,7 +7,7 @@ BioTracker is a personal health tracking web app for recording and reviewing hea
 The current MVP includes:
 
 - Manual health metric entry
-- Dashboard views for current data and trends
+- Dashboard with latest daily values
 - History for reviewing past entries
 - Reports for simple daily, weekly, and monthly summaries
 - Settings for basic preferences
