@@ -23,8 +23,8 @@ instead of ORM hooks.
   import/export still use the versioned JSON envelope).
 - Node backend (F1, landed): `api/` — Fastify + Drizzle + PostgreSQL. Normalized
   schema ported from v2, entries/reports/backups endpoints. See `api/README.md`.
-  The frontend reads/writes entries through the API client; `/settings` and
-  `/metrics/:id` are still pending.
+  The frontend reads/writes entries and granular metric updates through the API
+  client; `/settings` is still pending.
 - `SPEC.md` at repo root is the project contract: goals, interfaces, invariants
   (§V), and the phased task list (§T). Read it before architectural decisions.
 

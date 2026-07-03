@@ -96,11 +96,13 @@ POST   /entries
 PATCH  /entries/:date
 DELETE /entries/:date
 GET    /reports/{daily,weekly,monthly}/:date
+PATCH  /metrics/:id
+DELETE /metrics/:id
 GET    /backups/export
 POST   /backups/import
 ```
 
-Not yet implemented (F1 continuation, SPEC §T23): `/settings`, `/metrics/:id`.
+Not yet implemented (F1 continuation, SPEC §T23): `/settings`.
 
 ## Migrating existing browser data (T12/T24)
 

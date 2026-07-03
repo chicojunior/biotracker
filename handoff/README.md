@@ -26,6 +26,13 @@ Do not re-derive project history from git log when a handover already has it.
   you need "what did we decide three sessions ago," scan filenames by date.
 - `TEMPLATE.md` — the structure new handovers follow.
 
+## Automatic phase handover
+
+At the end of each project phase, update the handover automatically even if the
+user does not explicitly ask for it. Treat phase completion the same as a
+handover request: write a dated handover file and overwrite `LATEST.md` with the
+same content, after verifying the actual repo state.
+
 ## Requesting a handover
 
 Say "gera handover" / "write a handover" / "handoff" (any language, any tool).

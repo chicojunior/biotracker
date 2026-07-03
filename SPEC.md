@@ -182,7 +182,7 @@ T12|x|F1: import endpoint accepts v1 envelope → replace-all migration path loc
 T23|.|F1 cont: settings endpoints GET/PATCH/reset /settings + user_settings repo (defaults merge, theme inclusion)|I.api,I.schema
 T24|x|F1 cont: data migration UX — one-shot `POST /backups/import` of the browser's localStorage export (documented in api/README)|I.envelope,V16
 T13|x|F2: API client w/ Result contract; swap healthStorage backing; hook surface names unchanged (async over HTTP)|I.storage,C7
-T14|.|F2: metric-level CRUD UI (PATCH/DELETE /metrics/:id)|I.api
+T14|x|F2: metric-level CRUD UI (PATCH/DELETE /metrics/:id)|I.api
 T15|.|F3: data_imports audit table + write path|I.schema
 T16|.|F3: OMRON CSV importer (mapping ∈ v2 §I.omron_csv_import)|I.integrations,V10
 T17|.|F3: Health Connect ZIP importer (better-sqlite3 + unzip; watermark)|I.integrations,V22
@@ -200,7 +200,7 @@ Phasing:
 ```
 F0 saneamento   T1..T6 (done)
 F1 backend      T8..T12,T24 (done), T23 (todo)
-F2 front on API T7,T13 (done), T14 (todo)
+F2 front on API T7,T13,T14 (done)
 F3 importers    T15..T17
 F4 integrations T18..T20
 F5 quality      T21..T22
