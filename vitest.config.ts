@@ -8,6 +8,6 @@ export default defineConfig({
     globals: true,
     passWithNoTests: true,
     setupFiles: './src/test/setup.ts',
-    exclude: [...configDefaults.exclude, '**/.claude/**'],
+    exclude: [...configDefaults.exclude, '**/.claude/**', '**/.worktrees/**'],
   },
 });
