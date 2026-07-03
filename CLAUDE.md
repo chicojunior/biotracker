@@ -78,8 +78,9 @@ fitnessPlatform, importedCsv, healthConnect.
 - Backend (roadmap Phase 1): Node + TypeScript API, PostgreSQL with the
   normalized schema ported from v2 (users, daily_entries, metric_entries,
   user_settings, data_imports, connected_accounts). Explicit SQL migrations.
-- Shared domain types and Zod schemas move to a shared package when the API
-  lands; they are the single source of truth for validation on both sides.
+- No shared package: `api/` imports domain types and Zod schemas directly from
+  `../src` (SPEC §C11). They are the single source of truth for validation on
+  both sides — don't duplicate a schema in `api/`, import it.
 - Business logic lives in plain, testable functions/services — never in route
   handlers or React components.
 - Keep the `Result` envelope contract across all service boundaries.
@@ -108,6 +109,17 @@ Backend (`api/`, see api/README.md):
 - every new function gets a test; every bug fix gets a regression test
 - deterministic report logic: inject `now`, never read the wall clock inside
 - never modify ../biotracker-v2
+
+## Continuity Across Tools And Sessions
+
+This project is worked on by multiple AI tools (Claude, Codex, Gemini) across
+separate sessions. `AGENTS.md` and `GEMINI.md` are thin pointers back to this
+file — all three read the same instructions.
+
+Start a fresh session by reading `handoff/LATEST.md`, not by re-deriving
+history from git log or exploring cold. When a session's work is done, or the
+user asks for a "handover"/"handoff", write one following
+`handoff/README.md`'s protocol.
 
 ## Guardrails
 
