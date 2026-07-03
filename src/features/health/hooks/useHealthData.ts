@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { DailyHealthEntry } from '../../../types/health';
+import type { DailyHealthEntry, HealthMetricEntry } from '../../../types/health';
 import {
   deleteDailyEntry,
+  deleteMetricEntry,
   exportHealthData,
   importHealthData,
   loadDailyEntries,
+  updateMetricEntry,
   type HealthStorageError,
   upsertDailyEntry,
 } from '../../../lib/storage/healthStorage';
@@ -30,6 +32,8 @@ export type UseHealthDataValue = {
   importData: (rawValue: string) => Promise<boolean>;
   reload: () => Promise<boolean>;
   removeEntry: (date: string) => Promise<boolean>;
+  removeMetric: (metricId: string) => Promise<boolean>;
+  updateMetric: (metricEntry: HealthMetricEntry) => Promise<boolean>;
   upsertEntry: (entry: DailyHealthEntry) => Promise<boolean>;
 };
 
@@ -124,6 +128,50 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
     [storageOptions],
   );
 
+  const updateMetric = useCallback(
+    async (metricEntry: HealthMetricEntry) => {
+      setStatus('saving');
+      setStatusMessage('');
+      setErrorMessage('');
+
+      const result = await updateMetricEntry(metricEntry, storageOptions);
+
+      if (!result.ok) {
+        setStatus('error');
+        setErrorMessage(toFriendlyErrorMessage(result.error));
+        return false;
+      }
+
+      setEntries(result.data);
+      setStatus('ready');
+      setStatusMessage('Metric updated.');
+      return true;
+    },
+    [storageOptions],
+  );
+
+  const removeMetric = useCallback(
+    async (metricId: string) => {
+      setStatus('saving');
+      setStatusMessage('');
+      setErrorMessage('');
+
+      const result = await deleteMetricEntry(metricId, storageOptions);
+
+      if (!result.ok) {
+        setStatus('error');
+        setErrorMessage(toFriendlyErrorMessage(result.error));
+        return false;
+      }
+
+      setEntries(result.data);
+      setStatus('ready');
+      setStatusMessage('Metric removed.');
+      return true;
+    },
+    [storageOptions],
+  );
+
   const importData = useCallback(
     async (rawValue: string) => {
       setStatus('saving');
@@ -179,8 +227,10 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
     isLoading: status === 'loading',
     reload,
     removeEntry,
+    removeMetric,
     status,
     statusMessage,
+    updateMetric,
     upsertEntry,
   };
 }

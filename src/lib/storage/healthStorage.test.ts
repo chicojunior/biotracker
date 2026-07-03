@@ -5,10 +5,12 @@ import {
   HEALTH_STORAGE_VERSION,
   clearHealthData,
   deleteDailyEntry,
+  deleteMetricEntry,
   exportHealthData,
   importHealthData,
   loadDailyEntries,
   saveDailyEntries,
+  updateMetricEntry,
   upsertDailyEntry,
 } from './healthStorage';
 
@@ -180,6 +182,48 @@ describe('health storage API client', () => {
     });
 
     expect(fetchImpl.mock.calls[0][0]).toBe(`${API_BASE_URL}/entries/2024-02-29`);
+    expect(fetchImpl.mock.calls[0][1]?.method).toBe('DELETE');
+  });
+
+  it('updates one metric entry and reloads the full list', async () => {
+    const entry = dailyEntry();
+    const metric = entry.metrics.weight?.[0] as HealthMetricEntry;
+    const updatedEntry = dailyEntry({
+      metrics: {
+        weight: [metricEntry({ id: metric.id, value: 81.2, notes: 'updated' })],
+      },
+    });
+    const fetchImpl = createFetchMock(
+      jsonResponse({ ok: true, data: updatedEntry }),
+      jsonResponse({ ok: true, data: [updatedEntry] }),
+    );
+
+    await expect(
+      updateMetricEntry({ ...metric, value: 81.2, notes: 'updated' }, options(fetchImpl)),
+    ).resolves.toEqual({
+      ok: true,
+      data: [updatedEntry],
+    });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${API_BASE_URL}/metrics/${metric.id}`);
+    expect(fetchImpl.mock.calls[0][1]?.method).toBe('PATCH');
+  });
+
+  it('deletes one metric entry and reloads the full list', async () => {
+    const entry = dailyEntry();
+    const metric = entry.metrics.weight?.[0] as HealthMetricEntry;
+    const updatedEntry = dailyEntry({ metrics: {} });
+    const fetchImpl = createFetchMock(
+      jsonResponse({ ok: true, data: updatedEntry }),
+      jsonResponse({ ok: true, data: [updatedEntry] }),
+    );
+
+    await expect(deleteMetricEntry(metric.id, options(fetchImpl))).resolves.toEqual({
+      ok: true,
+      data: [updatedEntry],
+    });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${API_BASE_URL}/metrics/${metric.id}`);
     expect(fetchImpl.mock.calls[0][1]?.method).toBe('DELETE');
   });
 

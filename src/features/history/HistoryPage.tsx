@@ -1,6 +1,6 @@
 import { History, LayoutList } from "lucide-react";
 
-import type { DailyHealthEntry } from "../../types/health";
+import type { DailyHealthEntry, HealthMetricEntry } from "../../types/health";
 import { EntryDetailPanel } from "./components/EntryDetailPanel";
 import { EntryList } from "./components/EntryList";
 
@@ -10,6 +10,8 @@ export type HistoryPageProps = {
   onSelectEntry?: (entryId: string) => void;
   onEditEntry?: (entryId: string) => void;
   onDeleteEntry?: (entryId: string) => void;
+  onUpdateMetric?: (metricEntry: HealthMetricEntry) => boolean | Promise<boolean>;
+  onDeleteMetric?: (metricId: string) => boolean | Promise<boolean>;
   isListLoading?: boolean;
   isDetailLoading?: boolean;
   listErrorMessage?: string;
@@ -31,6 +33,8 @@ export function HistoryPage({
   onSelectEntry,
   onEditEntry,
   onDeleteEntry,
+  onUpdateMetric,
+  onDeleteMetric,
   isListLoading = false,
   isDetailLoading = false,
   listErrorMessage,
@@ -114,6 +118,8 @@ export function HistoryPage({
               entry={selectedEntry}
               onEditEntry={onEditEntry}
               onDeleteEntry={onDeleteEntry}
+              onUpdateMetric={onUpdateMetric}
+              onDeleteMetric={onDeleteMetric}
               isLoading={isDetailLoading}
               errorMessage={detailErrorMessage}
               statusMessage={detailStatusMessage}

@@ -4,18 +4,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyHealthEntry, HealthMetricEntry } from '../../../types/health';
 import {
   deleteDailyEntry,
+  deleteMetricEntry,
   exportHealthData,
   importHealthData,
   loadDailyEntries,
+  updateMetricEntry,
   upsertDailyEntry,
 } from '../../../lib/storage/healthStorage';
 import { useHealthData } from './useHealthData';
 
 vi.mock(import('../../../lib/storage/healthStorage'), () => ({
   deleteDailyEntry: vi.fn(),
+  deleteMetricEntry: vi.fn(),
   exportHealthData: vi.fn(),
   importHealthData: vi.fn(),
   loadDailyEntries: vi.fn(),
+  updateMetricEntry: vi.fn(),
   upsertDailyEntry: vi.fn(),
 }));
 
@@ -143,6 +147,75 @@ describe('useHealthData', () => {
     });
     expect(result.current.entries).toEqual([keptEntry]);
     expect(result.current.statusMessage).toBe('Entry removed.');
+  });
+
+  it('updates a metric and exposes a success status', async () => {
+    const entry = dailyEntry();
+    const metric = entry.metrics.weight?.[0] as HealthMetricEntry;
+    const updatedEntry = dailyEntry({
+      metrics: {
+        weight: [metricEntry({ value: 81.2 })],
+      },
+    });
+
+    vi.mocked(loadDailyEntries).mockResolvedValue({ ok: true, data: [entry] });
+    vi.mocked(updateMetricEntry).mockResolvedValue({ ok: true, data: [updatedEntry] });
+
+    const { result } = renderHook(() => useHealthData());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('ready');
+    });
+
+    let updateResult = false;
+
+    await act(async () => {
+      updateResult = await result.current.updateMetric({ ...metric, value: 81.2 });
+    });
+
+    expect(updateResult).toBe(true);
+    expect(updateMetricEntry).toHaveBeenCalledWith(
+      { ...metric, value: 81.2 },
+      {
+        apiBaseUrl: undefined,
+        fetchImpl: undefined,
+        now: undefined,
+        storage: undefined,
+      },
+    );
+    expect(result.current.entries).toEqual([updatedEntry]);
+    expect(result.current.statusMessage).toBe('Metric updated.');
+  });
+
+  it('removes a metric and exposes a success status', async () => {
+    const entry = dailyEntry();
+    const metric = entry.metrics.weight?.[0] as HealthMetricEntry;
+    const updatedEntry = dailyEntry({ metrics: {} });
+
+    vi.mocked(loadDailyEntries).mockResolvedValue({ ok: true, data: [entry] });
+    vi.mocked(deleteMetricEntry).mockResolvedValue({ ok: true, data: [updatedEntry] });
+
+    const { result } = renderHook(() => useHealthData());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('ready');
+    });
+
+    let removeResult = false;
+
+    await act(async () => {
+      removeResult = await result.current.removeMetric(metric.id);
+    });
+
+    expect(removeResult).toBe(true);
+    expect(deleteMetricEntry).toHaveBeenCalledWith(metric.id, {
+      apiBaseUrl: undefined,
+      fetchImpl: undefined,
+      now: undefined,
+      storage: undefined,
+    });
+    expect(result.current.entries).toEqual([updatedEntry]);
+    expect(result.current.statusMessage).toBe('Metric removed.');
   });
 
   it('supports manual reload when autoLoad is disabled', async () => {

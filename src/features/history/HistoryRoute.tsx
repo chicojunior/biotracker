@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import type { DailyHealthEntry } from '../../types/health';
+import type { DailyHealthEntry, HealthMetricEntry } from '../../types/health';
 import { useHealthData } from '../health/hooks/useHealthData';
 import { HistoryPage, type HistoryPageProps } from './HistoryPage';
 
@@ -81,6 +81,20 @@ export function HistoryRoute({ PageComponent = HistoryPage }: HistoryRouteProps)
     [healthData.entries, navigate],
   );
 
+  const handleUpdateMetric = useCallback(
+    async (metricEntry: HealthMetricEntry) => {
+      return healthData.updateMetric(metricEntry);
+    },
+    [healthData.updateMetric],
+  );
+
+  const handleDeleteMetric = useCallback(
+    async (metricId: string) => {
+      return healthData.removeMetric(metricId);
+    },
+    [healthData.removeMetric],
+  );
+
   const isBusy = healthData.isLoading || healthData.status === 'saving';
 
   return (
@@ -90,6 +104,8 @@ export function HistoryRoute({ PageComponent = HistoryPage }: HistoryRouteProps)
       onSelectEntry={handleSelectEntry}
       onDeleteEntry={handleDeleteEntry}
       onEditEntry={handleEditEntry}
+      onUpdateMetric={handleUpdateMetric}
+      onDeleteMetric={handleDeleteMetric}
       isListLoading={healthData.isLoading}
       isDetailLoading={isBusy}
       listErrorMessage={healthData.errorMessage}

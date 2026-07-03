@@ -91,8 +91,10 @@ describe('ReportsRoute', () => {
       isLoading: false,
       reload: vi.fn(),
       removeEntry: vi.fn(),
+      removeMetric: vi.fn(),
       status: 'ready',
       statusMessage: '',
+      updateMetric: vi.fn(),
       upsertEntry: vi.fn(),
     });
   });

@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-import type { DailyHealthEntry } from '../../types/health';
+import type { DailyHealthEntry, HealthMetricEntry } from '../../types/health';
 import { compareDateKeys } from '../dates/dateRanges';
-import { dailyHealthEntrySchema } from '../validation/healthSchemas';
+import { dailyHealthEntrySchema, healthMetricEntrySchema } from '../validation/healthSchemas';
 
 export const HEALTH_STORAGE_KEY = 'biotracker.health.dailyEntries';
 export const HEALTH_STORAGE_VERSION = 1;
@@ -378,6 +378,57 @@ export async function deleteDailyEntry(
   const deleteResult = await requestApiResult(`/entries/${encodeURIComponent(date)}`, z.object({ date: z.string() }), options, {
     method: 'DELETE',
   });
+
+  if (!deleteResult.ok) {
+    return deleteResult;
+  }
+
+  return loadDailyEntries(options);
+}
+
+export async function updateMetricEntry(
+  metricEntry: HealthMetricEntry,
+  options: HealthStorageOptions = {},
+): Promise<HealthStorageResult<DailyHealthEntry[]>> {
+  const entryResult = healthMetricEntrySchema.safeParse(metricEntry);
+
+  if (!entryResult.success) {
+    return failure(
+      'invalid_payload',
+      'Metric entry failed validation.',
+      validationDetails(entryResult.error),
+    );
+  }
+
+  const updateResult = await requestApiResult(
+    `/metrics/${encodeURIComponent(entryResult.data.id)}`,
+    dailyHealthEntrySchema,
+    options,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(entryResult.data),
+    },
+  );
+
+  if (!updateResult.ok) {
+    return updateResult;
+  }
+
+  return loadDailyEntries(options);
+}
+
+export async function deleteMetricEntry(
+  metricId: string,
+  options: HealthStorageOptions = {},
+): Promise<HealthStorageResult<DailyHealthEntry[]>> {
+  const deleteResult = await requestApiResult(
+    `/metrics/${encodeURIComponent(metricId)}`,
+    dailyHealthEntrySchema,
+    options,
+    {
+      method: 'DELETE',
+    },
+  );
 
   if (!deleteResult.ok) {
     return deleteResult;
