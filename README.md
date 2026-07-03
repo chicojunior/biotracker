@@ -70,9 +70,19 @@ npm test -- src/lib/storage/healthStorage.test.ts
 - The data model should stay ready for future multi-source metrics
 - Insights and summaries are for personal tracking only, not medical advice
 
+## Backend (api/)
+
+A Node + TypeScript backend (Fastify + Drizzle + PostgreSQL) lives in `api/`. It
+persists health data to a normalized relational schema and exposes entries,
+reports, and JSON backup import/export. The React app still uses localStorage;
+connecting it to the API is the next roadmap phase. See [api/README.md](api/README.md)
+for setup and endpoints.
+
 ## Current Status
 
-The MVP is active and runnable locally. Polish, consistency, and trend work are still in progress.
+The MVP is active and runnable locally. The backend (phase F1) is in place with
+its own test suite; the frontend-to-API wiring, settings endpoints, and device
+integrations are still ahead. See `SPEC.md` for the phased roadmap.
 
 ## Contributing
 

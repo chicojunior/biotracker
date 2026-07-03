@@ -18,7 +18,8 @@ Evolve BioTracker on official stack: React 19 SPA + Node/TS backend. v1 = offici
 - C8: `../biotracker-v2` read-only. ⊥ modify, ⊥ delete.
 - C9: semantic commits (feat/fix/test/chore/docs/refactor).
 - C10: Node pinned `.nvmrc` = 25.9.0; `engines.node >= 20.19`. Machine default Node 16 ⊥ runs toolchain.
-- C11: backend target ? (approved plan draft): Fastify + Drizzle + PostgreSQL, monorepo `apps/web` `apps/api` `packages/shared`. Confirm at F1 start.
+- C11 (confirmed 2026-07-03): backend = Fastify 5 + Drizzle ORM + node-postgres, PostgreSQL. Layout = **subfolder `api/`** (web stays at repo root); `api/` imports shared Zod schemas + types from `../src` (⊥ monorepo workspaces). Single root `package.json` serves web + api. Migrations via drizzle-kit → `api/drizzle/*.sql` (committed). DBs: `biotracker_dev`, `biotracker_test` (local pg 14).
+- C15: dev-only vuln accepted: `drizzle-kit` → `@esbuild-kit` → esbuild ≤0.24.2 (GHSA-67mh-4wv8-2f99, dev server request bleed). 4 moderate, no non-breaking fix. Scope = local migration tooling, ⊥ exposed server. Revisit on drizzle-kit major bump.
 - C12: report logic deterministic — `now` injected (V17).
 
 ## §I Interfaces
@@ -173,11 +174,13 @@ T4|x|rewrite CLAUDE.md: mission React+Node, v2 read-only reference|C1,C8
 T5|x|commit PRODUCT.md, DESIGN.md, .impeccable; gitignore .claude|—
 T6|x|SPEC.md adapted from v2|C8
 T7|.|wire DashboardTrendCard into HomePage (built ∈ T3, not mounted)|—
-T8|.|F1: monorepo layout apps/web apps/api packages/shared; move shared types+schemas|C11
-T9|.|F1: Fastify bootstrap + Result envelope middleware|C7,C11
-T10|.|F1: Drizzle schema + explicit SQL migrations (I.schema, 5 tables + V25 check)|I.schema,V25
-T11|.|F1: REST routes I.api w/ Zod validation per route|I.api,V1..V10
-T12|.|F1: import endpoint accepts v1 envelope → migration path localStorage→Postgres|I.envelope,V16
+T8|x|F1: subfolder `api/` layout (⊥ monorepo); Fastify+Drizzle+pg deps; tsconfig imports ../src; drizzle-kit config w/ process.loadEnvFile|C11,C15
+T9|x|F1: Fastify buildApp() factory + Result envelope (result.ts) + error handler malformed_json; testable via inject|C7,C11
+T10|x|F1: Drizzle schema (6 tables incl connected_accounts) + migration 0000; V25 check `num_nonnulls=1`; applied dev+test|I.schema,V25
+T11|x|F1: REST routes entries CRUD + reports daily/weekly/monthly + backups export/import; Zod validation reusing dailyHealthEntrySchema; :date regex constraint|I.api,V1..V10
+T12|x|F1: import endpoint accepts v1 envelope → replace-all migration path localStorage→Postgres; export→import round-trip tested|I.envelope,V16
+T23|.|F1 cont: settings endpoints GET/PATCH/reset /settings + user_settings repo (defaults merge, theme inclusion)|I.api,I.schema
+T24|.|F1 cont: data migration UX — one-shot `POST /backups/import` of the browser's localStorage export (documented in api/README)|I.envelope,V16
 T13|.|F2: API client w/ Result contract; swap healthStorage backing; hooks unchanged|I.storage,C7
 T14|.|F2: metric-level CRUD UI (PATCH/DELETE /metrics/:id)|I.api
 T15|.|F3: data_imports audit table + write path|I.schema
@@ -196,7 +199,7 @@ Phasing:
 
 ```
 F0 saneamento   T1..T6 (done)
-F1 backend      T8..T12
+F1 backend      T8..T12 (done), T23..T24 (todo)
 F2 front on API T7, T13..T14
 F3 importers    T15..T17
 F4 integrations T18..T20
@@ -209,4 +212,6 @@ F5 quality      T21..T22
 id|date|cause|fix
 B1|2026-07-03|Node ≥22 experimental localStorage global (non-functional w/o --localstorage-file) shadows jsdom impl → 17 test fails `localStorage.clear is not a function`|T2: in-memory Storage installed in test setup, methods on Storage.prototype (spyOn compat)
 B2|2026-07-03|vitest discovered `.worktrees/` git-worktree copies → duplicate failing suites|T2: exclude `**/.worktrees/**` in vitest.config.ts
+B3|2026-07-03|node:test ran api test files in parallel; concurrent `TRUNCATE ... CASCADE` on shared biotracker_test → pg deadlock 40P01|test:api runs `--test-concurrency=1` (integration tests share one DB)
+B4|2026-07-03|app caches userId (C6); test truncated `users` mid-run then reused same app → stale id → FK violation on import insert. ⊥ prod bug (user never deleted; import resolves/creates user on demand)|round-trip test uses a fresh buildTestApp() after reset to mirror real migration-into-empty-DB
 ```

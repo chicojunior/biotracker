@@ -18,9 +18,12 @@ instead of ORM hooks.
 ## Current State
 
 - React 19 SPA (Vite + Tailwind + React Router 7 + RHF/Zod + Recharts + Vitest).
-- Persistence: browser localStorage behind `src/lib/storage/healthStorage.ts`
-  (versioned JSON envelope, `Result {ok,data}|{ok,error}` contract).
-- No backend yet — building the Node API is the core of the evolution roadmap.
+- Frontend persistence today: browser localStorage behind
+  `src/lib/storage/healthStorage.ts` (versioned JSON envelope,
+  `Result {ok,data}|{ok,error}` contract).
+- Node backend (F1, landed): `api/` — Fastify + Drizzle + PostgreSQL. Normalized
+  schema ported from v2, entries/reports/backups endpoints. See `api/README.md`.
+  The frontend still talks to localStorage; wiring it to the API is F2.
 - `SPEC.md` at repo root is the project contract: goals, interfaces, invariants
   (§V), and the phased task list (§T). Read it before architectural decisions.
 
@@ -86,10 +89,17 @@ fitnessPlatform, importedCsv, healthConnect.
 Node is pinned via `.nvmrc` (25.9.0); run `nvm use` (or equivalent) first.
 The machine default Node 16 cannot run the toolchain.
 
+Frontend:
 - npm run dev — Vite dev server
 - npm run build — typecheck + production build
 - npm test — full Vitest suite
 - npm test -- src/lib/storage/healthStorage.test.ts — single file
+
+Backend (`api/`, see api/README.md):
+- npm run dev:api — Fastify with watch reload
+- npm run typecheck:api — tsc for the backend
+- npm run test:api — backend tests against biotracker_test
+- npm run db:migrate — apply Drizzle migrations
 
 ## Working Style
 
