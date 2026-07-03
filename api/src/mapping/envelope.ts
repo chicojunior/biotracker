@@ -35,7 +35,7 @@ export type MetricEntryInsert = {
   preferredSource: boolean;
 };
 
-function metricEntryToInsert(
+export function metricEntryToInsert(
   metricEntry: HealthMetricEntry,
   dailyEntryId: number,
 ): Result<MetricEntryInsert> {

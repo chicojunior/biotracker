@@ -108,3 +108,90 @@ test('DELETE /entries/:date removes the entry', async () => {
   const list = await app.inject({ method: 'GET', url: '/entries' });
   assert.deepEqual(list.json().data, []);
 });
+
+test('PATCH /metrics/:id updates one metric row and returns the parent entry', async () => {
+  const app = await freshApp();
+  await app.inject({
+    method: 'POST',
+    url: '/entries',
+    payload: dailyEntry({
+      metrics: {
+        weight: [metricEntry({ value: 82.4 })],
+        restingHeartRate: [
+          metricEntry({ id: 'heart-1', metricType: 'restingHeartRate', value: 61, unit: 'bpm' }),
+        ],
+      },
+    }),
+  });
+
+  const stored = await app.inject({ method: 'GET', url: '/entries/2024-02-29' });
+  const metric = stored.json().data.metrics.weight[0];
+  const response = await app.inject({
+    method: 'PATCH',
+    url: `/metrics/${metric.id}`,
+    payload: {
+      ...metric,
+      value: 80.2,
+      notes: 'morning re-check',
+      updatedAt: '2024-02-29T09:00:00.000Z',
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  const body = response.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.data.metrics.weight[0].value, 80.2);
+  assert.equal(body.data.metrics.weight[0].notes, 'morning re-check');
+  assert.equal(body.data.metrics.restingHeartRate[0].value, 61);
+});
+
+test('PATCH /metrics/:id rejects a body id mismatch', async () => {
+  const app = await freshApp();
+  await app.inject({ method: 'POST', url: '/entries', payload: dailyEntry() });
+  const stored = await app.inject({ method: 'GET', url: '/entries/2024-02-29' });
+  const metric = stored.json().data.metrics.weight[0];
+
+  const response = await app.inject({
+    method: 'PATCH',
+    url: `/metrics/${metric.id}`,
+    payload: { ...metric, id: '999' },
+  });
+
+  assert.equal(response.statusCode, 422);
+  assert.equal(response.json().error.code, 'invalid_payload');
+});
+
+test('DELETE /metrics/:id removes one metric row and keeps the parent entry', async () => {
+  const app = await freshApp();
+  await app.inject({
+    method: 'POST',
+    url: '/entries',
+    payload: dailyEntry({
+      metrics: {
+        weight: [metricEntry({ value: 82.4 })],
+        restingHeartRate: [
+          metricEntry({ id: 'heart-1', metricType: 'restingHeartRate', value: 61, unit: 'bpm' }),
+        ],
+      },
+    }),
+  });
+
+  const stored = await app.inject({ method: 'GET', url: '/entries/2024-02-29' });
+  const metric = stored.json().data.metrics.weight[0];
+  const response = await app.inject({ method: 'DELETE', url: `/metrics/${metric.id}` });
+
+  assert.equal(response.statusCode, 200);
+  const body = response.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.data.date, '2024-02-29');
+  assert.deepEqual(body.data.metrics.weight ?? [], []);
+  assert.equal(body.data.metrics.restingHeartRate[0].value, 61);
+});
+
+test('DELETE /metrics/:id returns 404 for a missing metric', async () => {
+  const app = await freshApp();
+  const response = await app.inject({ method: 'DELETE', url: '/metrics/999' });
+
+  assert.equal(response.statusCode, 404);
+  assert.equal(response.json().error.code, 'not_found');
+});

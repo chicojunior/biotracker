@@ -11,6 +11,7 @@ import type { Database } from './db/client';
 import { ensureUserId } from './repositories/entriesRepository';
 import { registerBackupRoutes } from './routes/backups';
 import { registerEntryRoutes } from './routes/entries';
+import { registerMetricRoutes } from './routes/metrics';
 import { registerReportRoutes } from './routes/reports';
 
 export type AppContext = {
@@ -63,6 +64,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.get('/health', async () => ({ ok: true, data: { status: 'ok' } }));
 
   await registerEntryRoutes(app, ctx);
+  await registerMetricRoutes(app, ctx);
   await registerReportRoutes(app, ctx);
   await registerBackupRoutes(app, ctx);
 

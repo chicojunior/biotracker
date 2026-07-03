@@ -7,11 +7,11 @@
  */
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
-import type { DailyHealthEntry } from '../../../src/types/health';
+import type { DailyHealthEntry, HealthMetricEntry } from '../../../src/types/health';
 import { compareDateKeys } from '../../../src/lib/dates/dateRanges';
 import type { Database } from '../db/client';
 import { dailyEntries, metricEntries, users } from '../db/schema';
-import { entryMetricsToInserts, rowsToEntry } from '../mapping/envelope';
+import { entryMetricsToInserts, metricEntryToInsert, rowsToEntry } from '../mapping/envelope';
 import { err, ok, type Result, type ResultError } from '../result';
 
 // Thrown inside a transaction to trigger rollback while carrying a typed
@@ -58,6 +58,55 @@ async function loadEntryByDate(
     .where(eq(metricEntries.dailyEntryId, daily.id));
 
   return rowsToEntry(daily, metricRows);
+}
+
+async function loadEntryById(
+  db: Database,
+  userId: number,
+  dailyEntryId: number,
+): Promise<DailyHealthEntry | null> {
+  const dailyRows = await db
+    .select()
+    .from(dailyEntries)
+    .where(and(eq(dailyEntries.userId, userId), eq(dailyEntries.id, dailyEntryId)))
+    .limit(1);
+
+  if (dailyRows.length === 0) {
+    return null;
+  }
+
+  const daily = dailyRows[0];
+  const metricRows = await db
+    .select()
+    .from(metricEntries)
+    .where(eq(metricEntries.dailyEntryId, daily.id));
+
+  return rowsToEntry(daily, metricRows);
+}
+
+function parseMetricId(rawId: string): Result<number> {
+  const parsed = Number(rawId);
+
+  if (!Number.isInteger(parsed) || parsed <= 0 || String(parsed) !== rawId.trim()) {
+    return err('invalid_payload', `Metric id must be a positive integer, got: ${rawId}`);
+  }
+
+  return ok(parsed);
+}
+
+async function findMetricOwner(
+  db: Database,
+  userId: number,
+  metricId: number,
+): Promise<{ dailyEntryId: number } | null> {
+  const rows = await db
+    .select({ dailyEntryId: metricEntries.dailyEntryId })
+    .from(metricEntries)
+    .innerJoin(dailyEntries, eq(metricEntries.dailyEntryId, dailyEntries.id))
+    .where(and(eq(metricEntries.id, metricId), eq(dailyEntries.userId, userId)))
+    .limit(1);
+
+  return rows[0] ?? null;
 }
 
 export async function listEntries(db: Database, userId: number): Promise<DailyHealthEntry[]> {
@@ -173,6 +222,82 @@ export async function deleteEntryByDate(
   }
 
   return ok({ date });
+}
+
+export async function updateMetricById(
+  db: Database,
+  userId: number,
+  rawMetricId: string,
+  metricEntry: HealthMetricEntry,
+): Promise<Result<DailyHealthEntry>> {
+  const metricId = parseMetricId(rawMetricId);
+
+  if (!metricId.ok) {
+    return metricId;
+  }
+
+  const owner = await findMetricOwner(db, userId, metricId.data);
+
+  if (!owner) {
+    return err('not_found', `No metric found for id ${rawMetricId}`);
+  }
+
+  const updateColumns = metricEntryToInsert(metricEntry, owner.dailyEntryId);
+
+  if (!updateColumns.ok) {
+    return updateColumns;
+  }
+
+  try {
+    await db
+      .update(metricEntries)
+      .set({
+        metricType: updateColumns.data.metricType,
+        source: updateColumns.data.source,
+        valueDecimal: updateColumns.data.valueDecimal,
+        valueText: updateColumns.data.valueText,
+        valueBoolean: updateColumns.data.valueBoolean,
+        unit: updateColumns.data.unit,
+        recordedAt: updateColumns.data.recordedAt,
+        notes: updateColumns.data.notes,
+        confidence: updateColumns.data.confidence,
+        preferredSource: updateColumns.data.preferredSource,
+        updatedAt: new Date(),
+      })
+      .where(eq(metricEntries.id, metricId.data));
+  } catch (error) {
+    return err('write_failed', `Failed to update metric ${rawMetricId}: ${String(error)}`);
+  }
+
+  const entry = await loadEntryById(db, userId, owner.dailyEntryId);
+  return entry ? ok(entry) : err('write_failed', `Entry for metric ${rawMetricId} vanished after update`);
+}
+
+export async function deleteMetricById(
+  db: Database,
+  userId: number,
+  rawMetricId: string,
+): Promise<Result<DailyHealthEntry>> {
+  const metricId = parseMetricId(rawMetricId);
+
+  if (!metricId.ok) {
+    return metricId;
+  }
+
+  const owner = await findMetricOwner(db, userId, metricId.data);
+
+  if (!owner) {
+    return err('not_found', `No metric found for id ${rawMetricId}`);
+  }
+
+  try {
+    await db.delete(metricEntries).where(eq(metricEntries.id, metricId.data));
+  } catch (error) {
+    return err('write_failed', `Failed to delete metric ${rawMetricId}: ${String(error)}`);
+  }
+
+  const entry = await loadEntryById(db, userId, owner.dailyEntryId);
+  return entry ? ok(entry) : err('write_failed', `Entry for metric ${rawMetricId} vanished after delete`);
 }
 
 /**
