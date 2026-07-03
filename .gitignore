@@ -2,3 +2,7 @@
 /dist
 /.worktrees
 /.claude
+
+# Backend local env (real DATABASE_URL / secrets). .env.test and .env.example
+# are committed; the live .env is not.
+/api/.env
