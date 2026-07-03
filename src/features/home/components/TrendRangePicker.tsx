@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { SegmentedControl } from '../../settings/components/SegmentedControl';
 
 export type TrendRangePreset = '7d' | '30d' | '90d';
@@ -13,7 +14,7 @@ const OPTIONS: { value: TrendRangePreset; label: string }[] = [
   { value: '90d', label: '90 dias' },
 ];
 
-export function TrendRangePicker({ value, onChange }: TrendRangePickerProps): JSX.Element {
+export function TrendRangePicker({ value, onChange }: TrendRangePickerProps): ReactElement {
   return (
     <SegmentedControl<TrendRangePreset>
       legend="Período"

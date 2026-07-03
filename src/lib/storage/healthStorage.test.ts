@@ -2,14 +2,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DailyHealthEntry, HealthMetricEntry } from '../../types/health';
 import {
-  HEALTH_STORAGE_KEY,
   HEALTH_STORAGE_VERSION,
   clearHealthData,
   deleteDailyEntry,
+  exportHealthData,
+  importHealthData,
   loadDailyEntries,
   saveDailyEntries,
   upsertDailyEntry,
 } from './healthStorage';
+
+type FetchMock = (input: string, init?: RequestInit) => Promise<Response>;
+
+const API_BASE_URL = 'http://api.test';
+const SAVED_AT = '2026-05-06T12:00:00.000Z';
 
 const metricEntry = (overrides: Partial<HealthMetricEntry> = {}): HealthMetricEntry => ({
   id: 'metric-1',
@@ -34,91 +40,247 @@ const dailyEntry = (overrides: Partial<DailyHealthEntry> = {}): DailyHealthEntry
   ...overrides,
 });
 
-describe('health storage', () => {
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { 'content-type': 'application/json' },
+    status: 200,
+    ...init,
+  });
+}
+
+function createFetchMock(...responses: Response[]): ReturnType<typeof vi.fn<FetchMock>> {
+  const fetchImpl = vi.fn<FetchMock>();
+
+  for (const response of responses) {
+    fetchImpl.mockResolvedValueOnce(response);
+  }
+
+  return fetchImpl;
+}
+
+function options(fetchImpl: FetchMock) {
+  return {
+    apiBaseUrl: API_BASE_URL,
+    fetchImpl,
+    now: () => SAVED_AT,
+  };
+}
+
+describe('health storage API client', () => {
   afterEach(() => {
-    localStorage.clear();
     vi.restoreAllMocks();
   });
 
-  it('loads an empty list when storage has no saved health data', () => {
-    expect(loadDailyEntries()).toEqual({ ok: true, data: [] });
+  it('loads daily entries from the API and sorts them by date', async () => {
+    const laterEntry = dailyEntry({ id: 'daily-2024-03-01', date: '2024-03-01' });
+    const earlierEntry = dailyEntry({ id: 'daily-2024-02-28', date: '2024-02-28' });
+    const fetchImpl = createFetchMock(jsonResponse({ ok: true, data: [laterEntry, earlierEntry] }));
+
+    await expect(loadDailyEntries(options(fetchImpl))).resolves.toEqual({
+      ok: true,
+      data: [earlierEntry, laterEntry],
+    });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${API_BASE_URL}/entries`);
   });
 
-  it('returns a storage unavailable error when localStorage is missing', () => {
-    expect(loadDailyEntries({ storage: null })).toEqual({
+  it('returns a storage unavailable error when the API cannot be reached', async () => {
+    const fetchImpl = vi.fn<FetchMock>().mockRejectedValue(new TypeError('Network failed'));
+
+    await expect(loadDailyEntries(options(fetchImpl))).resolves.toEqual({
       ok: false,
       error: {
         code: 'storage_unavailable',
-        message: 'Health data storage is unavailable.',
+        message: 'Health data API is unavailable.',
       },
     });
   });
 
-  it('saves and loads daily entries inside a versioned storage envelope', () => {
-    const entries = [dailyEntry()];
-    const savedAt = '2026-05-06T12:00:00.000Z';
+  it('returns a malformed JSON error when the API response is not JSON', async () => {
+    const fetchImpl = createFetchMock(new Response('{bad json', { status: 200 }));
 
-    expect(saveDailyEntries(entries, { now: () => savedAt }).ok).toBe(true);
-
-    const rawValue = localStorage.getItem(HEALTH_STORAGE_KEY);
-    expect(rawValue).not.toBeNull();
-    expect(JSON.parse(rawValue ?? '')).toEqual({
-      version: HEALTH_STORAGE_VERSION,
-      savedAt,
-      updatedAt: savedAt,
-      entries,
+    await expect(loadDailyEntries(options(fetchImpl))).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'malformed_json',
+        message: 'Health data API returned invalid JSON.',
+      },
     });
-    expect(loadDailyEntries()).toEqual({ ok: true, data: entries });
   });
 
-  it('returns a parse error for malformed JSON', () => {
-    localStorage.setItem(HEALTH_STORAGE_KEY, '{bad json');
+  it('passes API result errors through the storage Result contract', async () => {
+    const fetchImpl = createFetchMock(
+      jsonResponse({
+        ok: false,
+        error: {
+          code: 'invalid_payload',
+          message: 'Daily entry failed validation.',
+          details: ['entries.0.date: Expected a valid YYYY-MM-DD date key'],
+        },
+      }, { status: 422 }),
+    );
 
-    expect(loadDailyEntries()).toEqual({
+    await expect(loadDailyEntries(options(fetchImpl))).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'invalid_payload',
+        message: 'Daily entry failed validation.',
+        details: ['entries.0.date: Expected a valid YYYY-MM-DD date key'],
+      },
+    });
+  });
+
+  it('saves daily entries by posting a versioned import envelope', async () => {
+    const entry = dailyEntry();
+    const fetchImpl = createFetchMock(jsonResponse({ ok: true, data: [entry] }));
+
+    await expect(saveDailyEntries([entry], options(fetchImpl))).resolves.toEqual({
+      ok: true,
+      data: [entry],
+    });
+
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(url).toBe(`${API_BASE_URL}/backups/import`);
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(String(init?.body))).toEqual({
+      version: HEALTH_STORAGE_VERSION,
+      savedAt: SAVED_AT,
+      updatedAt: SAVED_AT,
+      entries: [entry],
+    });
+  });
+
+  it('upserts a daily entry and reloads the full list', async () => {
+    const entry = dailyEntry();
+    const fetchImpl = createFetchMock(
+      jsonResponse({ ok: true, data: entry }, { status: 201 }),
+      jsonResponse({ ok: true, data: [entry] }),
+    );
+
+    await expect(upsertDailyEntry(entry, options(fetchImpl))).resolves.toEqual({
+      ok: true,
+      data: [entry],
+    });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${API_BASE_URL}/entries`);
+    expect(fetchImpl.mock.calls[0][1]?.method).toBe('POST');
+    expect(fetchImpl.mock.calls[1][0]).toBe(`${API_BASE_URL}/entries`);
+  });
+
+  it('deletes a daily entry by date and reloads the full list', async () => {
+    const keptEntry = dailyEntry({ id: 'daily-2024-03-01', date: '2024-03-01' });
+    const fetchImpl = createFetchMock(
+      jsonResponse({ ok: true, data: { date: '2024-02-29' } }),
+      jsonResponse({ ok: true, data: [keptEntry] }),
+    );
+
+    await expect(deleteDailyEntry('2024-02-29', options(fetchImpl))).resolves.toEqual({
+      ok: true,
+      data: [keptEntry],
+    });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${API_BASE_URL}/entries/2024-02-29`);
+    expect(fetchImpl.mock.calls[0][1]?.method).toBe('DELETE');
+  });
+
+  it('clears health data through an empty replace-all import', async () => {
+    const fetchImpl = createFetchMock(jsonResponse({ ok: true, data: [] }));
+
+    await expect(clearHealthData(options(fetchImpl))).resolves.toEqual({
+      ok: true,
+      data: undefined,
+    });
+
+    expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toMatchObject({
+      version: HEALTH_STORAGE_VERSION,
+      entries: [],
+    });
+  });
+
+  it('exports health data as the v1 browser backup envelope', async () => {
+    const entry = dailyEntry();
+    const fetchImpl = createFetchMock(jsonResponse({ ok: true, data: [entry] }));
+
+    const result = await exportHealthData(options(fetchImpl));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(JSON.parse(result.data)).toEqual({
+        version: HEALTH_STORAGE_VERSION,
+        savedAt: SAVED_AT,
+        updatedAt: SAVED_AT,
+        entries: [entry],
+      });
+    }
+  });
+
+  it('imports a v1 envelope through the API', async () => {
+    const entry = dailyEntry();
+    const fetchImpl = createFetchMock(jsonResponse({ ok: true, data: [entry] }));
+
+    await expect(
+      importHealthData(
+        JSON.stringify({
+          version: HEALTH_STORAGE_VERSION,
+          savedAt: SAVED_AT,
+          updatedAt: SAVED_AT,
+          entries: [entry],
+        }),
+        options(fetchImpl),
+      ),
+    ).resolves.toEqual({ ok: true, data: [entry] });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${API_BASE_URL}/backups/import`);
+  });
+
+  it('returns a parse error for malformed imported JSON before calling the API', async () => {
+    const fetchImpl = createFetchMock();
+
+    await expect(importHealthData('{bad json', options(fetchImpl))).resolves.toEqual({
       ok: false,
       error: {
         code: 'malformed_json',
         message: 'Saved health data is not valid JSON.',
       },
     });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('returns an unsupported version error for future envelopes', () => {
-    localStorage.setItem(
-      HEALTH_STORAGE_KEY,
-      JSON.stringify({
-        version: HEALTH_STORAGE_VERSION + 1,
-        savedAt: '2024-02-29T08:00:00.000Z',
-        updatedAt: '2024-02-29T08:00:00.000Z',
-        entries: [],
-      }),
-    );
+  it('returns an unsupported version error for future import envelopes', async () => {
+    const fetchImpl = createFetchMock();
 
-    expect(loadDailyEntries()).toEqual({
+    await expect(
+      importHealthData(
+        JSON.stringify({
+          version: HEALTH_STORAGE_VERSION + 1,
+          entries: [],
+        }),
+        options(fetchImpl),
+      ),
+    ).resolves.toEqual({
       ok: false,
       error: {
         code: 'unsupported_version',
         message: `Saved health data version ${HEALTH_STORAGE_VERSION + 1} is not supported.`,
       },
     });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('returns an invalid payload error when saved entries fail validation', () => {
-    localStorage.setItem(
-      HEALTH_STORAGE_KEY,
+  it('returns an invalid payload error when imported entries fail validation', async () => {
+    const fetchImpl = createFetchMock();
+
+    const result = await importHealthData(
       JSON.stringify({
         version: HEALTH_STORAGE_VERSION,
-        savedAt: '2024-02-29T08:00:00.000Z',
-        updatedAt: '2024-02-29T08:00:00.000Z',
         entries: [
           dailyEntry({
             date: '2024-02-30',
           }),
         ],
       }),
+      options(fetchImpl),
     );
-
-    const result = loadDailyEntries();
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -126,78 +288,6 @@ describe('health storage', () => {
       expect(result.error.message).toBe('Saved health data failed validation.');
       expect(result.error.details?.length ?? 0).toBeGreaterThan(0);
     }
-  });
-
-  it('replaces an existing daily entry when upserting the same date', () => {
-    const originalEntry = dailyEntry({
-      id: 'daily-original',
-      notes: 'Original notes',
-    });
-    const replacementEntry = dailyEntry({
-      id: 'daily-replacement',
-      notes: 'Replacement notes',
-    });
-
-    expect(saveDailyEntries([originalEntry]).ok).toBe(true);
-
-    const result = upsertDailyEntry(replacementEntry);
-
-    expect(result).toEqual({ ok: true, data: [replacementEntry] });
-    expect(loadDailyEntries()).toEqual({ ok: true, data: [replacementEntry] });
-  });
-
-  it('adds a new daily entry and stores entries sorted by date', () => {
-    const laterEntry = dailyEntry({
-      id: 'daily-2024-03-01',
-      date: '2024-03-01',
-    });
-    const earlierEntry = dailyEntry({
-      id: 'daily-2024-02-28',
-      date: '2024-02-28',
-    });
-
-    expect(saveDailyEntries([laterEntry]).ok).toBe(true);
-
-    const result = upsertDailyEntry(earlierEntry);
-
-    expect(result).toEqual({ ok: true, data: [earlierEntry, laterEntry] });
-    expect(loadDailyEntries()).toEqual({ ok: true, data: [earlierEntry, laterEntry] });
-  });
-
-  it('deletes a daily entry by date and leaves other entries intact', () => {
-    const entryToDelete = dailyEntry({
-      id: 'daily-2024-02-28',
-      date: '2024-02-28',
-    });
-    const entryToKeep = dailyEntry({
-      id: 'daily-2024-03-01',
-      date: '2024-03-01',
-    });
-
-    expect(saveDailyEntries([entryToDelete, entryToKeep]).ok).toBe(true);
-
-    expect(deleteDailyEntry('2024-02-28')).toEqual({ ok: true, data: [entryToKeep] });
-    expect(loadDailyEntries()).toEqual({ ok: true, data: [entryToKeep] });
-  });
-
-  it('clears saved health data', () => {
-    expect(saveDailyEntries([dailyEntry()]).ok).toBe(true);
-
-    expect(clearHealthData()).toEqual({ ok: true, data: undefined });
-    expect(localStorage.getItem(HEALTH_STORAGE_KEY)).toBeNull();
-  });
-
-  it('returns a write error when localStorage setItem fails', () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('Quota exceeded', 'QuotaExceededError');
-    });
-
-    expect(saveDailyEntries([dailyEntry()])).toEqual({
-      ok: false,
-      error: {
-        code: 'write_failed',
-        message: 'Health data could not be saved.',
-      },
-    });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

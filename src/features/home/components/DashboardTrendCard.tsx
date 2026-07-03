@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import type { DailyHealthEntry, HealthMetricType } from '../../../types/health';
 import type { ChartConfig } from '../charts/metricChartConfig';
 import type { DateRange } from '../../../lib/charts/types';
@@ -19,7 +20,7 @@ export function DashboardTrendCard({
   entries,
   range,
   preferredSources,
-}: DashboardTrendCardProps): JSX.Element {
+}: DashboardTrendCardProps): ReactElement {
   const result = buildTrendSeries({
     entries,
     metricTypes: config.series.map((s) => s.metricType),

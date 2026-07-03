@@ -1,3 +1,4 @@
+import type { ReactElement, ReactNode } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -40,8 +41,12 @@ function formatDateTick(dateStr: string): string {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(date);
 }
 
-function formatTooltipLabel(dateStr: string): string {
-  const date = parseDateLocal(dateStr);
+function formatTooltipLabel(label: ReactNode): ReactNode {
+  if (typeof label !== 'string') {
+    return label;
+  }
+
+  const date = parseDateLocal(label);
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
     month: '2-digit',
@@ -49,7 +54,7 @@ function formatTooltipLabel(dateStr: string): string {
   }).format(date);
 }
 
-export function TrendChart(props: TrendChartProps): JSX.Element {
+export function TrendChart(props: TrendChartProps): ReactElement {
   const { data, series, unit, decimals, ariaLabel, caption, height = 220 } = props;
 
   const numberFormatter = new Intl.NumberFormat('pt-BR', {
@@ -57,10 +62,17 @@ export function TrendChart(props: TrendChartProps): JSX.Element {
     minimumFractionDigits: 0,
   });
 
-  function formatTooltipValue(value: number | string, _name: string, item: { name?: string }): [string, string] {
-    const formatted = typeof value === 'number' ? numberFormatter.format(value) : String(value);
-    const label = item.name ?? _name;
-    return [`${formatted} ${unit}`, label];
+  function formatTooltipValue(value: unknown, name: unknown, item: { name?: unknown }): [ReactNode, string] {
+    const formatted =
+      typeof value === 'number'
+        ? numberFormatter.format(value)
+        : Array.isArray(value)
+          ? value.join(' - ')
+          : value === null || value === undefined
+            ? '--'
+            : String(value);
+    const label = item.name ?? name;
+    return [`${formatted} ${unit}`, String(label ?? '')];
   }
 
   return (

@@ -24,8 +24,8 @@ export function SettingsRoute() {
     }
   }, [healthData.errorMessage, healthData.statusMessage]);
 
-  const onExport = useCallback(() => {
-    const exportedValue = healthData.exportData();
+  const onExport = useCallback(async () => {
+    const exportedValue = await healthData.exportData();
 
     if (!exportedValue) {
       return;
@@ -61,9 +61,18 @@ export function SettingsRoute() {
         return;
       }
 
+      const confirmed = window.confirm(
+        'Importing this backup replaces all existing health data. Continue?',
+      );
+
+      if (!confirmed) {
+        setStatusMessage('Health data import canceled.');
+        return;
+      }
+
       try {
         const rawValue = await selectedFile.text();
-        healthData.importData(rawValue);
+        await healthData.importData(rawValue);
       } catch {
         setStatusMessage('Could not read the selected JSON file.');
       }

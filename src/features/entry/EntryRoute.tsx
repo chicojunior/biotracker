@@ -302,7 +302,7 @@ export function EntryRoute() {
   }, []);
 
   const handleSubmit = useCallback<React.FormEventHandler<HTMLFormElement>>(
-    (event) => {
+    async (event) => {
       event.preventDefault();
 
       setLocalErrorMessage("");
@@ -384,7 +384,7 @@ export function EntryRoute() {
         return;
       }
 
-      const didSave = healthData.upsertEntry(schemaResult.data);
+      const didSave = await healthData.upsertEntry(schemaResult.data);
 
       if (!didSave) {
         setLocalErrorMessage("Could not save the entry.");

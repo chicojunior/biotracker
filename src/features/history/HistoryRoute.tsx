@@ -48,14 +48,14 @@ export function HistoryRoute({ PageComponent = HistoryPage }: HistoryRouteProps)
   }, []);
 
   const handleDeleteEntry = useCallback(
-    (entryId: string) => {
+    async (entryId: string) => {
       const entry = findEntryById(healthData.entries, entryId);
 
       if (!entry) {
         return;
       }
 
-      const removed = healthData.removeEntry(entry.date);
+      const removed = await healthData.removeEntry(entry.date);
 
       if (!removed) {
         return;

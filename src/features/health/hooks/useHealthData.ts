@@ -13,6 +13,8 @@ import {
 export type HealthDataStatus = 'idle' | 'loading' | 'saving' | 'ready' | 'error';
 
 export type UseHealthDataOptions = {
+  apiBaseUrl?: string;
+  fetchImpl?: typeof fetch;
   storage?: Storage | null;
   now?: () => string;
   autoLoad?: boolean;
@@ -24,11 +26,11 @@ export type UseHealthDataValue = {
   isLoading: boolean;
   status: HealthDataStatus;
   statusMessage: string;
-  exportData: () => string | null;
-  importData: (rawValue: string) => boolean;
-  reload: () => boolean;
-  removeEntry: (date: string) => boolean;
-  upsertEntry: (entry: DailyHealthEntry) => boolean;
+  exportData: () => Promise<string | null>;
+  importData: (rawValue: string) => Promise<boolean>;
+  reload: () => Promise<boolean>;
+  removeEntry: (date: string) => Promise<boolean>;
+  upsertEntry: (entry: DailyHealthEntry) => Promise<boolean>;
 };
 
 const FRIENDLY_ERROR_MESSAGES: Record<HealthStorageError['code'], string> = {
@@ -37,6 +39,7 @@ const FRIENDLY_ERROR_MESSAGES: Record<HealthStorageError['code'], string> = {
   unsupported_version: 'Saved health data is from an unsupported app version.',
   invalid_payload: 'Health data format is invalid. Please review and try again.',
   write_failed: 'Could not save health data. Please try again.',
+  not_found: 'The requested health entry was not found.',
 };
 
 function toFriendlyErrorMessage(error: HealthStorageError): string {
@@ -46,10 +49,12 @@ function toFriendlyErrorMessage(error: HealthStorageError): string {
 export function useHealthData(options: UseHealthDataOptions = {}): UseHealthDataValue {
   const storageOptions = useMemo(
     () => ({
+      apiBaseUrl: options.apiBaseUrl,
+      fetchImpl: options.fetchImpl,
       now: options.now,
       storage: options.storage,
     }),
-    [options.now, options.storage],
+    [options.apiBaseUrl, options.fetchImpl, options.now, options.storage],
   );
 
   const [entries, setEntries] = useState<DailyHealthEntry[]>([]);
@@ -57,12 +62,12 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const reload = useCallback(() => {
+  const reload = useCallback(async () => {
     setStatus('loading');
     setStatusMessage('');
     setErrorMessage('');
 
-    const result = loadDailyEntries(storageOptions);
+    const result = await loadDailyEntries(storageOptions);
 
     if (!result.ok) {
       setStatus('error');
@@ -76,12 +81,12 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
   }, [storageOptions]);
 
   const upsertEntry = useCallback(
-    (entry: DailyHealthEntry) => {
+    async (entry: DailyHealthEntry) => {
       setStatus('saving');
       setStatusMessage('');
       setErrorMessage('');
 
-      const result = upsertDailyEntry(entry, storageOptions);
+      const result = await upsertDailyEntry(entry, storageOptions);
 
       if (!result.ok) {
         setStatus('error');
@@ -98,12 +103,12 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
   );
 
   const removeEntry = useCallback(
-    (date: string) => {
+    async (date: string) => {
       setStatus('saving');
       setStatusMessage('');
       setErrorMessage('');
 
-      const result = deleteDailyEntry(date, storageOptions);
+      const result = await deleteDailyEntry(date, storageOptions);
 
       if (!result.ok) {
         setStatus('error');
@@ -120,12 +125,12 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
   );
 
   const importData = useCallback(
-    (rawValue: string) => {
+    async (rawValue: string) => {
       setStatus('saving');
       setStatusMessage('');
       setErrorMessage('');
 
-      const result = importHealthData(rawValue, storageOptions);
+      const result = await importHealthData(rawValue, storageOptions);
 
       if (!result.ok) {
         setStatus('error');
@@ -141,11 +146,11 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
     [storageOptions],
   );
 
-  const exportData = useCallback(() => {
+  const exportData = useCallback(async () => {
     setStatusMessage('');
     setErrorMessage('');
 
-    const result = exportHealthData(storageOptions);
+    const result = await exportHealthData(storageOptions);
 
     if (!result.ok) {
       setStatus('error');
@@ -163,7 +168,7 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
       return;
     }
 
-    reload();
+    void reload();
   }, [options.autoLoad, reload]);
 
   return {

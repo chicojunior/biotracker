@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
 
 export type TrendDeltaPillProps = {
@@ -32,7 +33,7 @@ export function TrendDeltaPill({
   decimals,
   comparisonLabel,
   direction = 'neutral',
-}: TrendDeltaPillProps): JSX.Element | null {
+}: TrendDeltaPillProps): ReactElement | null {
   if (delta === null) return null;
 
   const formatter = new Intl.NumberFormat('pt-BR', {

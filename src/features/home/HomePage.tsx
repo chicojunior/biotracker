@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { Activity, Plus, Heart, Moon, Footprints } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { normalizeDateKey } from '../../lib/dates/dateRanges';
-import type { HealthMetricEntry } from '../../types/health';
+import { normalizeDateKey, type DateRange } from '../../lib/dates/dateRanges';
+import type { HealthMetricEntry, HealthMetricType } from '../../types/health';
 import { useHealthData } from '../health/hooks/useHealthData';
 import { useSettings } from '../settings/hooks/useSettings';
+import { DASHBOARD_METRIC_ORDER, METRIC_CHART_CONFIGS } from './charts/metricChartConfig';
+import { DashboardTrendCard } from './components/DashboardTrendCard';
 
 function getTimestamp(value: string): number {
   const parsed = Date.parse(value);
@@ -49,14 +51,44 @@ function renderMetricValue(
   return `${formatter.format(entry.value)}${suffix}`;
 }
 
+function getLast30DayRange(today: Date): DateRange {
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29, 12);
+
+  return {
+    start: normalizeDateKey(start),
+    end: normalizeDateKey(end),
+  };
+}
+
 export function HomePage() {
   const { entries, isLoading } = useHealthData();
   const { settings } = useSettings();
 
-  const todayDate = useMemo(() => normalizeDateKey(new Date()), []);
+  const today = useMemo(() => new Date(), []);
+  const todayDate = useMemo(() => normalizeDateKey(today), [today]);
+  const trendRange = useMemo(() => getLast30DayRange(today), [today]);
   const todayEntry = useMemo(
     () => entries.find((entry) => entry.date === todayDate),
     [entries, todayDate],
+  );
+  const preferredSources = useMemo(
+    () =>
+      DASHBOARD_METRIC_ORDER.reduce<Partial<Record<HealthMetricType, string>>>(
+        (result, metricKey) => {
+          for (const series of METRIC_CHART_CONFIGS[metricKey].series) {
+            const preferredSource = settings.metricPreferences[series.metricType]?.source;
+
+            if (preferredSource) {
+              result[series.metricType] = preferredSource;
+            }
+          }
+
+          return result;
+        },
+        {},
+      ),
+    [settings.metricPreferences],
   );
 
   const todayWeightEntry = selectMetricEntry(
@@ -145,6 +177,26 @@ export function HomePage() {
               maximumFractionDigits: 0,
             })}
           </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="dashboard-trends" className="pt-2">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 id="dashboard-trends" className="text-xl font-semibold text-foreground">Tendências</h2>
+            <p className="text-sm text-muted-foreground">Últimos 30 dias</p>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {DASHBOARD_METRIC_ORDER.map((metricKey) => (
+            <DashboardTrendCard
+              key={metricKey}
+              config={METRIC_CHART_CONFIGS[metricKey]}
+              entries={entries}
+              range={trendRange}
+              preferredSources={preferredSources}
+            />
+          ))}
         </div>
       </section>
 

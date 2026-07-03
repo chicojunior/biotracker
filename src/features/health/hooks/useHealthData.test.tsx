@@ -50,7 +50,7 @@ describe('useHealthData', () => {
   it('loads entries on mount and exposes ready state', async () => {
     const entries = [dailyEntry()];
 
-    vi.mocked(loadDailyEntries).mockReturnValue({ ok: true, data: entries });
+    vi.mocked(loadDailyEntries).mockResolvedValue({ ok: true, data: entries });
 
     const { result } = renderHook(() => useHealthData());
 
@@ -65,7 +65,7 @@ describe('useHealthData', () => {
   });
 
   it('exposes a friendly error when initial load fails', async () => {
-    vi.mocked(loadDailyEntries).mockReturnValue({
+    vi.mocked(loadDailyEntries).mockResolvedValue({
       ok: false,
       error: {
         code: 'storage_unavailable',
@@ -86,8 +86,8 @@ describe('useHealthData', () => {
   it('upserts an entry and updates list with success status', async () => {
     const entry = dailyEntry();
 
-    vi.mocked(loadDailyEntries).mockReturnValue({ ok: true, data: [] });
-    vi.mocked(upsertDailyEntry).mockReturnValue({ ok: true, data: [entry] });
+    vi.mocked(loadDailyEntries).mockResolvedValue({ ok: true, data: [] });
+    vi.mocked(upsertDailyEntry).mockResolvedValue({ ok: true, data: [entry] });
 
     const { result } = renderHook(() => useHealthData());
 
@@ -97,12 +97,14 @@ describe('useHealthData', () => {
 
     let upsertResult = false;
 
-    act(() => {
-      upsertResult = result.current.upsertEntry(entry);
+    await act(async () => {
+      upsertResult = await result.current.upsertEntry(entry);
     });
 
     expect(upsertResult).toBe(true);
     expect(upsertDailyEntry).toHaveBeenCalledWith(entry, {
+      apiBaseUrl: undefined,
+      fetchImpl: undefined,
       now: undefined,
       storage: undefined,
     });
@@ -117,8 +119,8 @@ describe('useHealthData', () => {
       date: '2024-03-01',
     });
 
-    vi.mocked(loadDailyEntries).mockReturnValue({ ok: true, data: [dailyEntry(), keptEntry] });
-    vi.mocked(deleteDailyEntry).mockReturnValue({ ok: true, data: [keptEntry] });
+    vi.mocked(loadDailyEntries).mockResolvedValue({ ok: true, data: [dailyEntry(), keptEntry] });
+    vi.mocked(deleteDailyEntry).mockResolvedValue({ ok: true, data: [keptEntry] });
 
     const { result } = renderHook(() => useHealthData());
 
@@ -128,12 +130,14 @@ describe('useHealthData', () => {
 
     let removeResult = false;
 
-    act(() => {
-      removeResult = result.current.removeEntry('2024-02-29');
+    await act(async () => {
+      removeResult = await result.current.removeEntry('2024-02-29');
     });
 
     expect(removeResult).toBe(true);
     expect(deleteDailyEntry).toHaveBeenCalledWith('2024-02-29', {
+      apiBaseUrl: undefined,
+      fetchImpl: undefined,
       now: undefined,
       storage: undefined,
     });
@@ -141,8 +145,8 @@ describe('useHealthData', () => {
     expect(result.current.statusMessage).toBe('Entry removed.');
   });
 
-  it('supports manual reload when autoLoad is disabled', () => {
-    vi.mocked(loadDailyEntries).mockReturnValue({ ok: true, data: [dailyEntry()] });
+  it('supports manual reload when autoLoad is disabled', async () => {
+    vi.mocked(loadDailyEntries).mockResolvedValue({ ok: true, data: [dailyEntry()] });
 
     const { result } = renderHook(() => useHealthData({ autoLoad: false }));
 
@@ -151,8 +155,8 @@ describe('useHealthData', () => {
 
     let reloadResult = false;
 
-    act(() => {
-      reloadResult = result.current.reload();
+    await act(async () => {
+      reloadResult = await result.current.reload();
     });
 
     expect(reloadResult).toBe(true);
@@ -167,9 +171,9 @@ describe('useHealthData', () => {
       date: '2024-03-02',
     });
 
-    vi.mocked(loadDailyEntries).mockReturnValue({ ok: true, data: [] });
-    vi.mocked(importHealthData).mockReturnValue({ ok: true, data: [importedEntry] });
-    vi.mocked(exportHealthData).mockReturnValue({ ok: true, data: '{"version":1}' });
+    vi.mocked(loadDailyEntries).mockResolvedValue({ ok: true, data: [] });
+    vi.mocked(importHealthData).mockResolvedValue({ ok: true, data: [importedEntry] });
+    vi.mocked(exportHealthData).mockResolvedValue({ ok: true, data: '{"version":1}' });
 
     const { result } = renderHook(() => useHealthData());
 
@@ -179,8 +183,8 @@ describe('useHealthData', () => {
 
     let importResult = false;
 
-    act(() => {
-      importResult = result.current.importData('{"version":1}');
+    await act(async () => {
+      importResult = await result.current.importData('{"version":1}');
     });
 
     expect(importResult).toBe(true);
@@ -188,8 +192,8 @@ describe('useHealthData', () => {
 
     let exportedValue: string | null = null;
 
-    act(() => {
-      exportedValue = result.current.exportData();
+    await act(async () => {
+      exportedValue = await result.current.exportData();
     });
 
     expect(exportedValue).toBe('{"version":1}');
