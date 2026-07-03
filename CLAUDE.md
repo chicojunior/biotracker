@@ -18,12 +18,13 @@ instead of ORM hooks.
 ## Current State
 
 - React 19 SPA (Vite + Tailwind + React Router 7 + RHF/Zod + Recharts + Vitest).
-- Frontend persistence today: browser localStorage behind
-  `src/lib/storage/healthStorage.ts` (versioned JSON envelope,
-  `Result {ok,data}|{ok,error}` contract).
+- Frontend persistence today: HTTP API client behind
+  `src/lib/storage/healthStorage.ts` (`Result {ok,data}|{ok,error}` contract;
+  import/export still use the versioned JSON envelope).
 - Node backend (F1, landed): `api/` — Fastify + Drizzle + PostgreSQL. Normalized
   schema ported from v2, entries/reports/backups endpoints. See `api/README.md`.
-  The frontend still talks to localStorage; wiring it to the API is F2.
+  The frontend reads/writes entries through the API client; `/settings` and
+  `/metrics/:id` are still pending.
 - `SPEC.md` at repo root is the project contract: goals, interfaces, invariants
   (§V), and the phased task list (§T). Read it before architectural decisions.
 

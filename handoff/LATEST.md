@@ -1,98 +1,80 @@
-# Handover — 2026-07-03 F1 backend landed
+# Handover — 2026-07-03 F2 frontend API wiring
 
-Tool/session that wrote this: Claude Code (Sonnet/Opus/Fable rotation) — v1/v2 recon, F0 cleanup, F1 backend build.
+Tool/session that wrote this: Codex — F2 frontend storage/API integration.
 
 ## Session summary
 
-Two v1/v2 BioTracker copies existed in this workspace: v1 (React+Node, this
-repo) was abandoned in favor of a Rails rewrite (`../biotracker-v2`), which
-itself got abandoned because Rails' implicit conventions (ActiveRecord,
-callbacks, autoloading) hurt traceability. Decision: v1 is now the official
-base again; v2 stays as a **read-only** architecture/feature reference. This
-session did recon of both, wrote a gap analysis + roadmap, then executed
-phase F0 (repo cleanup) and F1 (Node backend scaffold).
+Implemented the next frontend phase from the prior handoff: health entry
+persistence now goes through the F1 Fastify API instead of browser
+localStorage, and the existing dashboard trend cards are mounted on Home. The
+Settings import/export flow now uses the API backup envelope path and confirms
+replace-all imports before posting.
 
 ## State at end of session
 
-- Tests: web `106/106` (`npm test`), api `23/23` (`npm run test:api`)
-- Typecheck: web build passes, `npm run typecheck:api` clean
-- Git: branch `main`, working tree clean, 8 commits this session (see `git log
-  --oneline -10`). No push done.
-- Local state: PostgreSQL 14 running via brew; `biotracker_dev` and
-  `biotracker_test` databases exist with migrations applied. `api/.env`
-  created locally from `.env.example` (gitignored, no secrets — just points at
-  `biotracker_dev`). Node pinned to 25.9.0 via `.nvmrc`; machine default is
-  Node 16 and cannot run this toolchain — always `nvm use` or prefix `PATH`
-  first.
+- Tests: web `108/108` (`npm test`), api `23/23` (`npm run test:api`, rerun
+  with sandbox escalation because local Postgres on `localhost:5432` was
+  blocked by EPERM in the sandbox).
+- Build/typecheck: `npm run build` passes; `npm run typecheck:api` passes.
+- Git: branch `main`, HEAD = `8727b27` (`0` commits this session), working tree
+  dirty with F2 implementation/docs changes.
+- Running services: API left running at `http://127.0.0.1:3001`; Vite left
+  running at `http://localhost:5173/`. `curl http://localhost:5173/api/health`
+  returned `{"ok":true,"data":{"status":"ok"}}`.
+- Local deps: added `@types/react` and `@types/react-dom` as dev dependencies
+  because clean `npm run build` failed without React declarations.
 
 ## Decisions made (with why)
 
-- **v1 (React+Node) is the official stack going forward** — why: user rejected
-  Rails' implicit-magic direction after living with v2. Cites: SPEC.md §G.
-- **v2 is read-only reference, never modified** — why: still valuable for
-  schema decisions and integration research (Google Health API v4, Health
-  Connect, OMRON CSV) already done there. Cites: SPEC.md §C8.
-- **Backend layout = `api/` subfolder, not a monorepo** — why: user chose this
-  explicitly over `apps/web`+`apps/api`+`packages/shared` to avoid disrupting
-  the working frontend. `api/` imports Zod schemas + types directly from
-  `../src` (no package boundary, no duplication). Cites: SPEC.md §C11.
-- **Backend stack = Fastify 5 + Drizzle ORM + node-postgres** — why: user
-  chose this explicitly over Express and Hono; Drizzle's explicit SQL
-  migrations (no ORM callbacks) directly serve the "explicit over implicit"
-  principle that motivated leaving Rails. Cites: SPEC.md §C11.
-- **Accepted 4 moderate dev-only vulnerabilities** (drizzle-kit → esbuild
-  ≤0.24.2, GHSA-67mh-4wv8-2f99) — why: no non-breaking fix exists yet, scope is
-  local migration tooling only, not an exposed server. Revisit on drizzle-kit
-  major bump. Cites: SPEC.md §C15.
-- **Test env fix**: Node ≥22's experimental `localStorage` global shadowed
-  jsdom's in Vitest, breaking 17 tests. Fixed with an in-memory `Storage`
-  polyfill on `Storage.prototype` (keeps `vi.spyOn` compatibility). Cites:
-  SPEC.md §B1.
-- **api tests run serialized** (`--test-concurrency=1`) — why: parallel
-  `TRUNCATE ... CASCADE` on the shared `biotracker_test` DB deadlocked
-  Postgres. Cites: SPEC.md §B3.
+- `healthStorage` remains the frontend persistence boundary, but its operations
+  are now async Promises — why: HTTP cannot preserve the old synchronous
+  localStorage return timing without lying to callers. Hook method names stayed
+  the same and consumers now `await` them. Cites: SPEC T13, C7, I.storage.
+- Frontend default API base is `/api` with a Vite dev proxy to
+  `http://localhost:3001` — why: avoids adding CORS surface to Fastify during
+  this phase and keeps production/development overrideable with env vars.
+  Cites: SPEC C11, T13.
+- Frontend export still emits the v1 browser backup envelope with
+  `savedAt`/`updatedAt` — why: preserves the user-facing backup shape while the
+  storage source moves to Postgres. Import accepts old envelopes and the API's
+  `exportedAt` envelope shape. Cites: SPEC I.envelope, V16, V26.
+- Trend component type fixes were kept local — why: React 19 typings no longer
+  expose the old global `JSX.Element` path, and Recharts 3 formatter types pass
+  broader values. No behavior change intended. Cites: SPEC T7, B5.
 
 ## Changed files (high-signal only)
 
-- `SPEC.md` — new. Project contract adapted from v2's SPEC.md, invariant ids
-  (V1-V30) kept aligned for cross-reference. Source of truth for what's
-  done/todo (§T) and why things are the way they are (§C, §V).
-- `CLAUDE.md` — rewritten. Mission = React+Node evolution (was: Rails rewrite
-  mission, now obsolete/wrong).
-- `.nvmrc`, `package.json` engines — Node 25.9.0 pinned.
-- `src/test/setup.ts` — in-memory Storage polyfill (see B1 above).
-- `api/` — new, whole backend. Start with `api/README.md` for setup,
-  endpoints, and the localStorage→Postgres migration procedure (T12).
-- Merged `feat/dashboard-trend-charts` branch into `main` — trend chart
-  components exist (`src/features/home/components/DashboardTrendCard.tsx`
-  etc.) but are **not yet wired into HomePage** (see SPEC T7, still todo).
+- `src/lib/storage/healthStorage.ts` — rewritten as a fetch-backed API client
+  for `/entries` and `/backups/import`, keeping the Result envelope and backup
+  import/export helpers.
+- `src/features/health/hooks/useHealthData.ts` plus route consumers — hook
+  actions now await API operations; Entry, History, and Settings routes await
+  save/delete/import/export results before showing success or mutating
+  selection.
+- `src/features/home/HomePage.tsx` — mounts `DashboardTrendCard` for the
+  existing chart configs over the last 30 days.
+- `vite.config.ts` — adds `/api` proxy to the Fastify dev server.
+- `src/features/home/components/*Trend*.tsx` — local type fixes for React 19
+  and Recharts formatter signatures.
+- `package.json` / `package-lock.json` — adds React/ReactDOM type packages.
+- `SPEC.md`, `CLAUDE.md`, `api/README.md` — marks T7/T13/T24 done, records B5,
+  and documents the frontend API/proxy migration path.
 
 ## Open items / next step
 
-- **F2** (SPEC T13-T14): swap the frontend's `healthStorage` localStorage
-  backend for an HTTP client against the new API. Hooks (`useHealthData`)
-  should not need to change shape, only the storage implementation behind
-  them.
-- **F1 continuation** (SPEC T23-T24, not yet done): `/settings` endpoints
-  (GET/PATCH/reset) and `/metrics/:id` granular CRUD. F1 shipped the vertical
-  slice that proves the foundation + migration path; these two are the
-  remaining gaps before calling F1 fully complete.
-- **T7** (quick win, not yet done): mount `DashboardTrendCard` into
-  `HomePage` — it's built and tested but sitting unused.
-- User was asked to choose between F2 and T23 next; no answer captured before
-  this handover was requested. Ask again or check chat continuation.
-- Codacy MCP was not connected this session — the workspace's mandatory
-  post-edit `codacy_cli_analyze` rule could not run. If available in a future
-  session, consider running it against `api/` retroactively.
+- T14 remains todo: metric-level CRUD UI needs `/metrics/:id`
+  PATCH/DELETE support before the UI can safely expose granular metric edits.
+- T23 remains todo: `/settings` GET/PATCH/reset endpoints and a
+  `user_settings` repository are still not implemented; frontend settings are
+  still localStorage-backed.
+- Consider dynamic import/code splitting later: `npm run build` passes but Vite
+  warns that the main JS chunk is larger than 500 kB.
+- Codacy MCP/CLI analysis was not available in this Codex session.
 
 ## Pointers
 
-- `SPEC.md` — full contract, read §T for task status, §V for invariants, §B
-  for known bugs/gotchas.
-- `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` — mission, stack, guardrails
-  (identical content, different filenames per tool convention).
-- `api/README.md` — backend setup, commands, endpoint list, migration guide.
-- `../biotracker-v2/SPEC.md` — reference only, has the deeper integration
-  research (Google Health API v4 client shape, Health Connect backup format,
-  OMRON CSV column mapping) that F3/F4 will need. Do not port code from there,
-  reimplement idiomatically.
+- `SPEC.md` §T: T7, T13, T24 done; T14 and T23 remain open.
+- `api/README.md` "Frontend integration (F2)" for running API + Vite together.
+- `src/lib/storage/healthStorage.test.ts` for the mocked fetch contract.
+- `src/features/home/components/DashboardTrendCard.test.tsx` and
+  `src/lib/charts/buildTrendSeries.test.ts` for trend behavior coverage.

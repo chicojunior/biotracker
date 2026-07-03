@@ -62,10 +62,31 @@ DATABASE_URL=postgres://localhost:5432/biotracker_test npm run db:migrate
 | `npm run db:generate` | Generate a migration from schema changes |
 | `npm run db:migrate` | Apply pending migrations |
 
+## Frontend integration (F2)
+
+The React app now reads and writes health entries through the API client behind
+`src/lib/storage/healthStorage.ts`. In development, Vite serves the frontend and
+proxies `/api/*` to the Fastify server:
+
+```bash
+# terminal 1
+npm run dev:api
+
+# terminal 2
+npm run dev
+```
+
+Defaults:
+
+- Frontend API base: `/api` (`VITE_BIOTRACKER_API_BASE_URL` overrides it).
+- Vite proxy target: `http://localhost:3001`
+  (`VITE_BIOTRACKER_API_PROXY_TARGET` overrides it).
+
 ## Endpoints
 
-All responses use the `Result` envelope: `{ ok: true, data }` or
-`{ ok: false, error: { code, message, details? } }`.
+Most responses use the `Result` envelope: `{ ok: true, data }` or
+`{ ok: false, error: { code, message, details? } }`. `GET /backups/export`
+returns the backup envelope directly so it can be downloaded/imported as-is.
 
 ```
 GET    /health
@@ -81,14 +102,17 @@ POST   /backups/import
 
 Not yet implemented (F1 continuation, SPEC §T23): `/settings`, `/metrics/:id`.
 
-## Migrating existing browser data (T12)
+## Migrating existing browser data (T12/T24)
 
-The React app currently stores everything in `localStorage` behind a versioned
-JSON envelope. That same envelope is the migration path into Postgres:
+Pre-F2 versions stored health entries in `localStorage` behind a versioned JSON
+envelope. That same envelope is the migration path into Postgres:
 
-1. In the running React app, export a backup (Settings → export) to get the
+1. In the old browser-backed React app, export a backup (Settings → export) to get the
    `{ version: 1, ..., entries: [...] }` JSON.
-2. `POST` it to `/backups/import`.
+2. In the F2 React app, use Settings → import and select that JSON file. The
+   frontend confirms the replace-all action and posts it to `/backups/import`.
+
+For direct API use, `POST` the same JSON envelope to `/backups/import`.
 
 Import is **replace-all** (SPEC §V16) and atomic (§V10): the whole set lands or
 nothing changes. v1 string ids are not preserved — Postgres owns identity — but

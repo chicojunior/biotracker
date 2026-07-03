@@ -173,15 +173,15 @@ T3|x|merge feat/dashboard-trend-charts (+18 files, trend components + libs, test
 T4|x|rewrite CLAUDE.md: mission React+Node, v2 read-only reference|C1,C8
 T5|x|commit PRODUCT.md, DESIGN.md, .impeccable; gitignore .claude|—
 T6|x|SPEC.md adapted from v2|C8
-T7|.|wire DashboardTrendCard into HomePage (built ∈ T3, not mounted)|—
+T7|x|wire DashboardTrendCard into HomePage (built ∈ T3, not mounted)|—
 T8|x|F1: subfolder `api/` layout (⊥ monorepo); Fastify+Drizzle+pg deps; tsconfig imports ../src; drizzle-kit config w/ process.loadEnvFile|C11,C15
 T9|x|F1: Fastify buildApp() factory + Result envelope (result.ts) + error handler malformed_json; testable via inject|C7,C11
 T10|x|F1: Drizzle schema (6 tables incl connected_accounts) + migration 0000; V25 check `num_nonnulls=1`; applied dev+test|I.schema,V25
 T11|x|F1: REST routes entries CRUD + reports daily/weekly/monthly + backups export/import; Zod validation reusing dailyHealthEntrySchema; :date regex constraint|I.api,V1..V10
 T12|x|F1: import endpoint accepts v1 envelope → replace-all migration path localStorage→Postgres; export→import round-trip tested|I.envelope,V16
 T23|.|F1 cont: settings endpoints GET/PATCH/reset /settings + user_settings repo (defaults merge, theme inclusion)|I.api,I.schema
-T24|.|F1 cont: data migration UX — one-shot `POST /backups/import` of the browser's localStorage export (documented in api/README)|I.envelope,V16
-T13|.|F2: API client w/ Result contract; swap healthStorage backing; hooks unchanged|I.storage,C7
+T24|x|F1 cont: data migration UX — one-shot `POST /backups/import` of the browser's localStorage export (documented in api/README)|I.envelope,V16
+T13|x|F2: API client w/ Result contract; swap healthStorage backing; hook surface names unchanged (async over HTTP)|I.storage,C7
 T14|.|F2: metric-level CRUD UI (PATCH/DELETE /metrics/:id)|I.api
 T15|.|F3: data_imports audit table + write path|I.schema
 T16|.|F3: OMRON CSV importer (mapping ∈ v2 §I.omron_csv_import)|I.integrations,V10
@@ -199,8 +199,8 @@ Phasing:
 
 ```
 F0 saneamento   T1..T6 (done)
-F1 backend      T8..T12 (done), T23..T24 (todo)
-F2 front on API T7, T13..T14
+F1 backend      T8..T12,T24 (done), T23 (todo)
+F2 front on API T7,T13 (done), T14 (todo)
 F3 importers    T15..T17
 F4 integrations T18..T20
 F5 quality      T21..T22
@@ -214,4 +214,5 @@ B1|2026-07-03|Node ≥22 experimental localStorage global (non-functional w/o --
 B2|2026-07-03|vitest discovered `.worktrees/` git-worktree copies → duplicate failing suites|T2: exclude `**/.worktrees/**` in vitest.config.ts
 B3|2026-07-03|node:test ran api test files in parallel; concurrent `TRUNCATE ... CASCADE` on shared biotracker_test → pg deadlock 40P01|test:api runs `--test-concurrency=1` (integration tests share one DB)
 B4|2026-07-03|app caches userId (C6); test truncated `users` mid-run then reused same app → stale id → FK violation on import insert. ⊥ prod bug (user never deleted; import resolves/creates user on demand)|round-trip test uses a fresh buildTestApp() after reset to mirror real migration-into-empty-DB
+B5|2026-07-03|clean `npm run build` lacked declared React type packages and trend components used global `JSX.Element`/narrow Recharts formatter signatures|added `@types/react`/`@types/react-dom`; typed trend components with `ReactElement` and broader tooltip formatter inputs
 ```
